@@ -9,7 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
-	//"net/http/httputil"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -71,7 +71,7 @@ func clientRequest(host string, port string){
 				},
 			},
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		HTTPSreq, err := http.NewRequest("GET", "https://"+HostPort, nil)
 		HTTPSreq.Header.Set("User-Agent", "Mozilla/5.0 (X11; U; Linux i686; rv:1.7.3) Gecko/20040914 Firefox/0.10.1")
 		HTTPSResp, err := client.Do(HTTPSreq)
@@ -81,7 +81,7 @@ func clientRequest(host string, port string){
 			client := &http.Client{
 				Timeout: 5 * time.Second,
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 			HTTPreq, err := http.NewRequest("GET", "http://"+HostPort, nil)
 			HTTPreq.Header.Set("User-Agent", "Mozilla/5.0 (X11; U; Linux i686; rv:1.7.3) Gecko/20040914 Firefox/0.10.1")
 			HTTPresp, err := client.Do(HTTPreq)
@@ -108,14 +108,15 @@ func clientRequest(host string, port string){
 
 func ProxyCheck(proto string, hostport string) {
 
-	proxyURL, err := url.Parse(proto+hostport)
+	proxyURL, err := url.Parse(proto + hostport)
 	client := &http.Client{
-		Timeout: 15 * time.Second,
+		Timeout: 5 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse},
+			return http.ErrUseLastResponse
+		},
 		Transport: &http.Transport{
 			DisableKeepAlives: true,
-			Proxy: http.ProxyURL(proxyURL),
+			Proxy:             http.ProxyURL(proxyURL),
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
@@ -137,29 +138,22 @@ func ProxyCheck(proto string, hostport string) {
 		log.Fatalln(err)
 	}
 	defer resp.Body.Close()
-	if string(resp.StatusCode) != "400"{
-		//headers, _ := httputil.DumpResponse(resp, false)
+	if string(resp.StatusCode) != "400" {
+		headers, _ := httputil.DumpResponse(resp, false)
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		var bodyString string
-		bodyString = string(bodyBytes)
-		//fmt.Println(string(headers))
-		JustIP := strings.Split(hostport, ":")
-		var JustIP1 string
-		JustIP1 = JustIP[0]
-		if JustIP1 == bodyString{
-			fmt.Println(proxyURL, "["+resp.Status+"]",resp.Header["Server"],"Transparent Proxy")
-			fmt.Print(JustIP[0],bodyString)
-		}else{
-			fmt.Println(proxyURL, "["+resp.Status+"]",resp.Header["Server"],"Return IP:"+bodyString)
-			fmt.Print(JustIP[0],bodyString)
+
+		//hacky method but will work for now. Better to create function that compares two requests before and after proxy
+		//
+		if len(bodyBytes) < 16 {
+			fmt.Println(proxyURL, "["+resp.Status+"]", resp.Header["Server"], "Proxy Success")
+		} else {
+			fmt.Println(proxyURL, "["+resp.Status+"]", resp.Header["Server"], "Response Size:", len(bodyBytes))
+			fmt.Println(string(headers))
 		}
 
-
-
 	}
-
 
 }
